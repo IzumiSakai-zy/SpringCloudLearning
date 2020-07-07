@@ -72,11 +72,19 @@
       <groupId>org.weng.springColud</groupId><!--自己的groupId-->
       <artifactId>springColudA</artifactId><!--自己的artifactId-->
       <version>1.0-SNAPSHOT</version>
-      <packaging>pom</packaging>
-      
       <!-- packaging pom 总工程-->
+      <packaging>pom</packaging>
+  
+      <!--新建的模块-->
+      <modules>
+          <module>cloud-provider-payment8001</module>
+      </modules>
+  
+  
       <!--统一管理jar包版本-->
       <properties>
+          <!--java版本自己增加-->
+          <java.version>1.8</java.version>
           <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
           <maven.compiler.source>12</maven.compiler.source>
           <maven.compiler.target>12</maven.compiler.target>
@@ -91,6 +99,11 @@
       <!--子模块继承之后，提供作用：锁定版本+子module不用写groupId和version-->
       <dependencyManagement><!--定义规范，但不导入-->
           <dependencies>
+              <dependency>
+                  <groupId>org.apache.maven.plugins</groupId>
+                  <artifactId>maven-project-info-reports-plugin</artifactId>
+                  <version>3.0.0</version>
+              </dependency>
               <!--spring boot 2.2.2-->
               <dependency>
                   <groupId>org.springframework.boot</groupId>
@@ -107,7 +120,66 @@
                   <type>pom</type>
                   <scope>import</scope>
               </dependency>
-              <!--省略-->
+              <!--spring cloud 阿里巴巴-->
+              <dependency>
+                  <groupId>com.alibaba.cloud</groupId>
+                  <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                  <version>2.1.0.RELEASE</version>
+                  <type>pom</type>
+                  <scope>import</scope>
+              </dependency>
+              <!--mysql-->
+              <dependency>
+                  <groupId>mysql</groupId>
+                  <artifactId>mysql-connector-java</artifactId>
+                  <version>${mysql.version}</version>
+                  <scope>runtime</scope>
+              </dependency>
+              <!-- druid-->
+              <dependency>
+                  <groupId>com.alibaba</groupId>
+                  <artifactId>druid-spring-boot-starter</artifactId>
+                  <version>1.1.14</version>
+              </dependency>
+  <!--            <dependency>-->
+  <!--                <groupId>com.alibaba</groupId>-->
+  <!--                <artifactId>druid</artifactId>-->
+  <!--                <version>${druid.version}</version>-->
+  <!--            </dependency>-->
+  <!--            &lt;!&ndash;mybatis&ndash;&gt;-->
+  <!--            <dependency>-->
+  <!--                <groupId>org.mybatis.spring.boot</groupId>-->
+  <!--                <artifactId>mybatis-spring-boot-starter</artifactId>-->
+  <!--                <version>${mybatis.spring.boot.version}</version>-->
+  <!--            </dependency>-->
+              <dependency>
+                  <groupId>com.baomidou</groupId>
+                  <artifactId>mybatis-plus-boot-starter</artifactId>
+                  <version>3.3.2</version>
+              </dependency>
+              <dependency>
+                  <groupId>com.baomidou</groupId>
+                  <artifactId>mybatis-plus-generator</artifactId>
+                  <version>3.3.2</version>
+              </dependency>
+              <dependency>
+                  <groupId>org.apache.velocity</groupId>
+                  <artifactId>velocity</artifactId>
+                  <version>1.7</version>
+              </dependency>
+              <!--junit-->
+              <dependency>
+                  <groupId>junit</groupId>
+                  <artifactId>junit</artifactId>
+                  <version>${junit.version}</version>
+              </dependency>
+              <!--log4j-->
+              <dependency>
+                  <groupId>log4j</groupId>
+                  <artifactId>log4j</artifactId>
+                  <version>${log4j.version}</version>
+              </dependency>
+          </dependencies>
       </dependencyManagement>
       <!--热启动插件-->
       <build>
@@ -124,3 +196,180 @@
       </build>
   </project>
   ```
+******************
+### 构造支付模块
+* 构建模块
+
+  * 五步走：建Module、改pom、写yml、主启动、业务类 
+  
+* 构造完成后父工程的pom文件会添加一个modules标签
+
+  ```xml
+  <!--新建的模块-->
+  <modules>
+      <module>cloud-provider-payment8001</module>
+  </modules>
+  ```
+  
+* 修改子项目的pom文件
+  
+  ```xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <project xmlns="http://maven.apache.org/POM/4.0.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+      <parent>
+          <artifactId>springColudA</artifactId>
+          <groupId>org.weng.springColud</groupId>
+          <version>1.0-SNAPSHOT</version>
+      </parent>
+      <modelVersion>4.0.0</modelVersion>
+  
+      <artifactId>cloud-provider-payment8001</artifactId>
+  
+      <dependencies>
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-web</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-actuator</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>com.baomidou</groupId>
+              <artifactId>mybatis-plus-boot-starter</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>com.alibaba</groupId>
+              <artifactId>druid-spring-boot-starter</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>com.baomidou</groupId>
+              <artifactId>mybatis-plus-generator</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.apache.velocity</groupId>
+              <artifactId>velocity</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>mysql</groupId>
+              <artifactId>mysql-connector-java</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-jdbc</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-devtools</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+          </dependency>
+          <dependency>
+              <groupId>org.springframework.boot</groupId>
+              <artifactId>spring-boot-starter-test</artifactId>
+          </dependency>
+      </dependencies>
+  </project>
+  ```
+  
+* 改yml
+
+  ```yaml
+  server:
+    port: 8001
+    
+  spring:
+    datasource:
+      username: root
+      password: 542270191MSzyl
+      url: jdbc:mysql://localhost:3306/mybatis-plus?useUnicode=true&characterEncoding=utf8
+      type: com.alibaba.druid.pool.DruidDataSource
+      druid:
+        initial-size: 5
+        min-idle: 5
+        max-active: 20
+        max-wait: 40000
+        time-between-eviction-runs-millis: 60000
+        min-evictable-idle-time-millis: 30000
+        validation-query: selcet 1 from dual
+        test-while-idle: true
+        test-on-borrow: false
+        test-on-return: false
+        pool-prepared-statements: true
+  ```
+  
+* 写主启动
+
+  ```java
+  @SpringBootApplication
+  public class PaymentMain8001 {
+      public static void main(String[] args) {
+          SpringApplication.run(PaymentMain8001.class,args);
+      }
+  }
+  ```
+  
+* 写业务层
+  
+  * 自定义一个通用返回结果类CommonResult
+  
+    * 使用lombok用惯了，有些时候自定义的类忘写@Data注解而又没写set方法就会报错，而且错误很难找
+    
+    ```java
+    @Data
+    public class CommonResult {
+        private Integer code;
+        private String message;
+        private Payment payment;
+    
+        public CommonResult(Integer code, String message, Payment payment) {
+            this.code = code;
+            this.message = message;
+            this.payment = payment;
+        }
+    
+        public CommonResult(Integer code, String message) {
+            this(code,message,null);
+        }
+    
+        @Override
+        public String toString() {
+            return "CommonResult{" +
+                    "code=" + code +
+                    ", message='" + message + '\'' +
+                    ", payment=" + payment +
+                    '}';
+        }
+    }
+    ```
+    
+  * 写业务层
+  
+    * 业务层可以返回自己的编写的类
+    * 业务层顶层最好有一个前缀路径
+    * 业务层都是@RestController。可以返回自定义结果类也可返回ModelAndView
+    * 前后端分离后端只管传数据，而且传的数据都是json字符串。因此自定义结果类用处可能很大
+  
+    ```java
+    @RestController
+    @RequestMapping("/payment")
+    public class PaymentController {
+        @Autowired
+        PaymentServiceImpl paymentService;
+    
+        @GetMapping("/payments/{id}")
+        public CommonResult query(@PathVariable Integer id){
+            Payment payment = paymentService.getById(id);
+            if (payment==null)
+                return new CommonResult(404,"查询失败");
+            else
+                return new CommonResult(200,"查询成功",payment);
+        }
+    }
+    ```
+  
+  

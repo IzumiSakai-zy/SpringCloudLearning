@@ -9,6 +9,12 @@
     <!-- packaging pom 总工程-->
     <packaging>pom</packaging>
 
+    <!--新建的模块-->
+    <modules>
+        <module>cloud-provider-payment8001</module>
+    </modules>
+
+
     <!--统一管理jar包版本-->
     <properties>
         <!--java版本自己增加-->
@@ -66,14 +72,34 @@
             <!-- druid-->
             <dependency>
                 <groupId>com.alibaba</groupId>
-                <artifactId>druid</artifactId>
-                <version>${druid.version}</version>
+                <artifactId>druid-spring-boot-starter</artifactId>
+                <version>1.1.14</version>
             </dependency>
-            <!--mybatis-->
+<!--            <dependency>-->
+<!--                <groupId>com.alibaba</groupId>-->
+<!--                <artifactId>druid</artifactId>-->
+<!--                <version>${druid.version}</version>-->
+<!--            </dependency>-->
+<!--            &lt;!&ndash;mybatis&ndash;&gt;-->
+<!--            <dependency>-->
+<!--                <groupId>org.mybatis.spring.boot</groupId>-->
+<!--                <artifactId>mybatis-spring-boot-starter</artifactId>-->
+<!--                <version>${mybatis.spring.boot.version}</version>-->
+<!--            </dependency>-->
             <dependency>
-                <groupId>org.mybatis.spring.boot</groupId>
-                <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>${mybatis.spring.boot.version}</version>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <version>3.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-generator</artifactId>
+                <version>3.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.velocity</groupId>
+                <artifactId>velocity</artifactId>
+                <version>1.7</version>
             </dependency>
             <!--junit-->
             <dependency>
