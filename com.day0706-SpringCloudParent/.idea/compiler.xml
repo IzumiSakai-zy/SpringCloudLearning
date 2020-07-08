@@ -6,10 +6,14 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="cloud-consumers-order80" />
         <module name="cloud-provider-payment8001" />
+        <module name="cloud-consumer-order80" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="cloud-consumer-order80" target="8" />
+      <module name="cloud-consumers-order80" target="8" />
       <module name="cloud-provider-payment8001" target="8" />
       <module name="com.day0706-SpringCloudParent" target="8" />
     </bytecodeTargetLevel>

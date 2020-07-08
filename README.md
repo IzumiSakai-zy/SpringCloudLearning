@@ -321,15 +321,15 @@
     
     ```java
     @Data
-    public class CommonResult {
+    public class CommonResult<T> {
         private Integer code;
         private String message;
-        private Payment payment;
+        private T t;
     
-        public CommonResult(Integer code, String message, Payment payment) {
+        public CommonResult(Integer code, String message, T t) {
             this.code = code;
             this.message = message;
-            this.payment = payment;
+            this.t = t;
         }
     
         public CommonResult(Integer code, String message) {
@@ -341,7 +341,7 @@
             return "CommonResult{" +
                     "code=" + code +
                     ", message='" + message + '\'' +
-                    ", payment=" + payment +
+                    ", t=" + t +
                     '}';
         }
     }
@@ -362,7 +362,7 @@
         PaymentServiceImpl paymentService;
     
         @GetMapping("/payments/{id}")
-        public CommonResult query(@PathVariable Integer id){
+        public CommonResult<Payment> query(@PathVariable Integer id){
             Payment payment = paymentService.getById(id);
             if (payment==null)
                 return new CommonResult(404,"查询失败");
@@ -372,4 +372,76 @@
     }
     ```
   
+*************************
+
+### 热部署Devtools
+
+* 方便是方便，，对电脑要求高，就不用了
+
+***********************
+### 消费者模块构建
+
+* 总体方法同上
+
+* 注意事项
+  * 要先创建主类，在写yml，不然没有提示
+  * 消费者模块的entities和支付模块是相同的
+
+* `RestTemplate`的使用
+
+  * 首先通过配置类注入到spring中 
+
+    ```java 
+    @Configuration
+    public class MianConfig {
+        @Bean(name = "restTemplate")
+        public RestTemplate getRestTemplate(){
+            return new RestTemplate();
+        }
+    }
+    ```
   
+*************************
+### 模块之间读操作互相调用
+
+* 80端口消费者controller编写
+
+  * 使用RestTemplate来进行调用访问
+  * 2个参数(URL值，访问服务返回值类型)
+* 消费者访问 localhost//consumer/1
+  
+  ```java
+  @RestController
+  @Slf4j
+  @RequestMapping("/consumer")
+  public class OrderController {
+      private static final String PAYMENT_URL="http://localhost:8001";
+      @Autowired
+      private RestTemplate restTemplate;
+  
+      @RequestMapping("/{id}")
+      public CommonResult<Payment> find(@PathVariable("id") Integer id){
+          return restTemplate.getForObject(PAYMENT_URL + "//payment/payments/"+id.toString(), CommonResult.class);
+      }
+  }
+  ```
+  
+* 注意事项
+
+  * 要把两个端口同时打开
+  * 返回的类型一定要有无参数构造函数
+
+******************
+
+### 模块之间写操作调用
+
+* 消费者代码
+
+* 支付模块代码
+
+* 注意事项
+
+  * 写操作是使用postForObject()方法。有三个参数(URL，post的对象，返回值类型)
+
+  * 写操作访问的@RequestMapping中不要带参数，是实际来浏览器中访问才带参数
+  * 支付者模块参数要加@RequestBody注解，因为这个参数是从消费者的访问传过来的

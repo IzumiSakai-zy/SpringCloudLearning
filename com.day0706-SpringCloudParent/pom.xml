@@ -12,6 +12,7 @@
     <!--新建的模块-->
     <modules>
         <module>cloud-provider-payment8001</module>
+        <module>cloud-consumers-order80</module>
     </modules>
 
 

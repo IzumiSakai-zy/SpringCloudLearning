@@ -1,5 +1,6 @@
 package com.result;
 
+import com.entities.Payment;
 import lombok.Data;
 
 @Data
@@ -14,11 +15,11 @@ public class CommonResult<T> {
         this.t = t;
     }
 
-    public CommonResult(Integer code, String message) {
-        this(code,message,null);
+    public CommonResult() {
     }
 
-    public CommonResult() {
+    public CommonResult(Integer code, String message) {
+        this(code,message,null);
     }
 
     @Override

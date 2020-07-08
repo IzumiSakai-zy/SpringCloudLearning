@@ -1,10 +1,9 @@
-package com.entity;
+package com.entities;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+
 import java.io.Serializable;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 /**
  * <p>
@@ -15,9 +14,9 @@ import lombok.EqualsAndHashCode;
  * @since 2020-07-08
  */
 public class Payment{
-  @TableId(value = "id", type = IdType.AUTO)
-  private Integer id;
-  private String serial;
+    @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private String serial;
 
   public Integer getId() {
     return id;
