@@ -433,15 +433,320 @@
 
 ******************
 
-### 模块之间写操作调用
+### 模块之间写操作互相调用
 
 * 消费者代码
 
+  ```java
+  @RestController
+  @Slf4j
+  @RequestMapping("/consumer")
+  public class OrderController {
+      private static final String PAYMENT_URL="http://localhost:8001";
+      @Autowired
+      private RestTemplate restTemplate;
+  
+      @RequestMapping("/insert")
+      public CommonResult insert(HttpServletRequest request){
+          String serial = request.getParameter("serial");
+          Payment payment=new Payment();
+          payment.setSerial(serial);
+          return restTemplate.postForObject(PAYMENT_URL+"//payment/payments/insert",payment,CommonResult.class);
+      }
+  }
+  ```
+
 * 支付模块代码
+
+  ```java
+  @RestController
+  @RequestMapping("/payment")
+  public class PaymentController {
+      @Autowired
+      PaymentServiceImpl paymentService;
+      
+      @RequestMapping("/payments/insert")
+      public CommonResult insert(@RequestBody Payment payment){
+          boolean save = paymentService.save(payment);
+          if (save)
+              return new CommonResult(200,"插入成功",payment);
+          else
+              return new CommonResult(404,"插入失败");
+      }
+  }
+  ```
 
 * 注意事项
 
   * 写操作是使用postForObject()方法。有三个参数(URL，post的对象，返回值类型)
-
-  * 写操作访问的@RequestMapping中不要带参数，是实际来浏览器中访问才带参数
+* 写操作访问的@RequestMapping中不要带参数，是实际来浏览器中访问才带参数
   * 支付者模块参数要加@RequestBody注解，因为这个参数是从消费者的访问传过来的
+  * 这种通过地址栏的访问千万不能设置成post方式，就由get方式测试
+
+****************
+
+### 工程重构
+
+* 两个项目都有entities包，而且里面内容是一模一样的。可以打成一个jar包所有模块共享
+
+**************************
+
+### Eureka安装
+
+* 两个组件
+  * Eureka Server——提供服务注册服务
+  * Eureka Client——通过注册中心进行访问
+  
+* 导入依赖
+
+  * 注意不是所有模块都要使用数据库，因此有的模块可以不连接数据库
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+  </dependency>
+  ```
+  
+* 改yml
+
+  ```yaml
+  server:
+    port: 7001
+  
+  eureka:
+    instance:
+      hostname: localhost #服务端的实例名称
+    client:
+      fetch-registry: false # 表示自己是注册中心，不用去检索服务
+      register-with-eureka: false # false表示不向注册公司注册自己
+      service-url:
+        defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+        # 设置与eureka server交互的地址查询服务和注册服务都需要依赖这个网址
+  ```
+  
+* 主类添加`@EnableEurekaServer`注解
+
+  ```java
+  @SpringBootApplication
+  @EnableEurekaServer
+  public class EurekaServerMain7001 {
+      public static void main(String[] args) {
+          SpringApplication.run(EurekaServerMain7001.class,args);
+      }
+  }
+  ```
+  
+* 测试
+
+  * 访问 localhost:7001/
+  * 建议连上数据库，不然要排除数据库类的自动配置
+
+**********************
+
+### 将支付模块8001加入到Eureka中
+
+* 添加导入依赖
+
+  * 注意一个是server结尾，一个是client结尾
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+  </dependency>
+  ```
+  
+* 主类加上`@EnableEurekaClient`注解
+
+* 改yml
+
+  ```yaml
+  spring:
+    application:
+      name: cloud-payment-service # 注册后的显示的名字
+  
+  eureka:
+    client:
+      fetch-registry: true # 自己是客户端，要检索服务
+      register-with-eureka: true # 表明向公司注册自己
+      service-url:
+        defaultZone: http://localhost:7001/eureka/ # 缩进、空格都不能省略
+        # 设置与eureka server交互的地址查询服务和注册服务都需要依赖这个网址
+  ```
+  
+* 启动测试
+
+  * 先启动7001Eureka模块
+  * 在启动8001支付模块
+  * 访问 `http://localhost:7001`
+    * 访问结果会添加8001模块到注册环境
+
+***********************
+
+### 将消费者模块80注册到Eureka
+
+* 大体步骤和上面相似
+* 访问`localhost//consumer/insert?serial=new_serial`依然可以访问
+
+**************************
+
+### Eureka集群搭建
+
+* 核心：互相注册，相互守望(每台eureka服务器都有其他所有eureka服务器注册信息)
+
+* 修改Windows路径`C:\Windows\System32\drivers\etc\hosts`系统的配置文件，处理多路映射
+
+  * ```bash
+    127.0.0.1  eureka7001.com
+    127.0.0.1  eureka7001.com
+    ```
+  
+* 如果不做路径映射
+
+  * eureka.instance.hostname应该不是IP地址名称，应该取不一样的值。不能都取为localhost，否则不能构成集群
+  
+```YAML
+  eureka:
+    instance:
+      hostname: eureka7001 #服务端的实例名称
+  ```
+  
+* 修改两个yml文件
+
+  * 7002端口注册到7001服务器，7001端口注册到7002服务器。构成集群
+  * 实际上都是localhost，因为只有一台主机。只是加了个映射而已
+
+  ```yaml
+  server:
+    port: 7002
+  
+  eureka:
+    instance:
+      hostname: eureka7002.com #服务端的实例名称
+    client:
+      fetch-registry: false # 表示自己是注册中心，不用去检索服务
+      register-with-eureka: false # false表示不向注册公司注册自己
+      service-url:
+        defaultZone: http://eureka7001.com:7001/eureka/
+        # 设置与eureka server交互的地址查询服务和注册服务都需要依赖这个网址
+  ```
+  
+* 访问测试
+
+  * 打开两个eureka端口
+  * 访问`http://eureka7001.com:7001/`DS Replicas指向`eureka7001.com`; 访问`http://eureka7002.com:7002/`DS Replicas指向`eureka7002.com`。实现集群
+
+************************
+
+### 把支付服务和消费者服务注册到2台Eureka服务器构成的集群
+
+* 只用修改yml文件
+
+  * ```yaml
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://eureka7001.com:7001/eureka/,http://eureka7001.com:7001/eureka/
+    ```
+* 测试，一共要开4个端口。先开两个eureka再开两个服务。
+
+***********************
+
+### 服务模块集群构建
+
+* 新建cloud-provider-payment8002项目
+
+* 修改两个模块的controller。用于打印到底调用了那个服务模块
+
+  ```java
+  @Value("${server.port}")
+  private String serverPort;
+  ```
+  
+* 打开2个eureka服务器，2个service支付模块，一个消费者80
+
+  * 结果都能跑通。eureka注册无问题，支付模块自测无问题，消费者80测试没问题
+
+    * 核心是eureka的service注册名字只有一个**CLOUD-PAYMENT-SERVICE**，但有两个服务
+
+      ```yaml
+      spring:
+        application:
+          name: cloud-payment-service
+      ```
+
+  * 但是没有实现负载均衡，永远都是8001.因为`private static final String PAYMENT_URL="http://localhost:8001";`写死了
+  
+* 实现负载均衡
+
+  * 添加`@LoadBlanced`注解，开启RestTemplate负载均衡
+
+    * 但这是默认的轮询方式，效率不高
+  
+    ```java
+    @Configuration
+    public class MianConfig {
+        @Bean(name = "restTemplate")
+        @LoadBalanced
+        public RestTemplate getRestTemplate(){
+            return new RestTemplate();
+        }
+  }
+    ```
+
+  * 修改访问路径，整个集群暴露在外就是注册名字
+  
+  ```java
+  private static final String PAYMENT_URL="http://cloud-payment-service";
+  ```
+  
+* 然后就访问`http://localhost/consumer/1`。成功了，会调用不同的service，端口号有时8001，有时8002。
+
+************************
+
+### 修改Eureka注册的实例主机名和IP显示
+
+* 在8001,8002两个支付模块中做如下修改
+
+  ```yaml
+  eureka:
+    instance:
+      instance-id: payment8002
+  ```
+  
+* 修改完成访问eureka发现service服务名字改变
+
+  * 最好不要改，改了后发现注册不进去了
+
+************************
+
+### 服务发现Discovery
+
+* 作用：获取该微服务模块的信息
+
+* 首先注入DiscoveryClient
+
+  * 注意不是网飞的那个类，不要导错类
+
+  ```java
+  @Autowired
+  private DiscoveryClient discoveryClient;
+  ```
+
+* 然后主启动类添加注解`@EnableDiscoveryClient`
+
+* 获取信息
+
+  ```java
+  //服务是对外暴露的微服务名称
+  List<String> services = discoveryClient.getServices();
+  //实例是一个服务包含的集群里面的各个实例
+  List<ServiceInstance> instances = discoveryClient.getInstances("CLOUD-PAYMENT-SERVICE");
+  //通过instance可以获得主机号、端口号等信息
+  ```
+***************
+### Eureka保护模式
+
+* 作用：某个微服务在某个时刻不能使用了，不会立刻清理，而是进行保存信息
+* 现象：出现很多红色字样
