@@ -4,6 +4,7 @@ import com.entities.Payment;
 import com.result.CommonResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.ModelAndView;
@@ -39,6 +40,15 @@ public class OrderController {
         payment.setSerial(serial);
         System.out.println(payment);
         return restTemplate.postForObject(PAYMENT_URL+"//payment/payments/insert",payment,CommonResult.class);
+    }
+
+    @RequestMapping("/getForEntity/{id}")
+    public CommonResult<Payment> getForEntity(@PathVariable("id") Integer id){
+        ResponseEntity<CommonResult> entity = restTemplate.getForEntity(PAYMENT_URL + "//payment/payments/", CommonResult.class);
+        if (entity.getStatusCode().is2xxSuccessful())
+            return entity.getBody();
+        else
+            return new CommonResult<Payment>(404,"getForEntity查询失败");
     }
 }
 

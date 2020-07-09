@@ -11,4 +11,8 @@ eureka:
 
 spring:
   application:
-    name: cloud-consumers-order
+    name: cloud-consumer-feign-order
+
+ribbon:
+  ReadTimeout: 5000
+  ConnectTimeout: 5000

@@ -11,4 +11,4 @@ eureka:
 
 spring:
   application:
-    name: cloud-consumers-order
+    name: cloud-consumer-feign-order

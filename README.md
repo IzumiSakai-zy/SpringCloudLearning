@@ -610,8 +610,8 @@
   eureka:
     instance:
       hostname: eureka7001 #服务端的实例名称
-  ```
-  
+```
+
 * 修改两个yml文件
 
   * 7002端口注册到7001服务器，7001端口注册到7002服务器。构成集群
@@ -750,3 +750,161 @@
 
 * 作用：某个微服务在某个时刻不能使用了，不会立刻清理，而是进行保存信息
 * 现象：出现很多红色字样
+
+***************
+
+### Ribbon介绍
+
+* 介绍：客户端负载均衡工具
+
+* 负载均衡分类
+  * 集中式负载均衡——Nginx(外网流入内网)
+  * 本地负载均衡——Ribbon(内网内部分流)
+  
+* 一句话：本地负载均衡+RestTemplate实现远程调用
+
+* 工作分两步
+  *  先选择Eureka Server服务器，找一个比较少的server
+  * 根据用户算法策略，从server注册中选取一个提供服务的模块
+  
+* 导入依赖
+
+  * eureka客户端里面已经整合了ribbon
+
+  ```xml
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+  </dependency>
+  ```
+********************
+### RestTeplate使用
+
+* getForObject()和geForEntiy()区别
+  * getForObject()返回对象为响应体中数据转换为的对象，基本可以理解成Json数据
+  * getForEntity()返回对象为ResponseEntity对象，包含一些重要信息响应头、响应状态码、响应体等
+  
+* getForEntity()使用
+
+  ```java
+  @RequestMapping("/getForEntity/{id}")
+  public CommonResult<Payment> getForEntity(@PathVariable("id") Integer id){
+      ResponseEntity<CommonResult> entity = restTemplate.getForEntity(PAYMENT_URL + "//payment/payments/", CommonResult.class);
+      if (entity.getStatusCode().is2xxSuccessful())
+          return entity.getBody();
+      else
+          return new CommonResult<Payment>(404,"getForEntity查询失败");
+  }
+  ```
+******************
+### 核心接口IRule
+
+* 用于确定负载均衡的算法
+
+* ribbon内置有7种
+
+* 替换方法
+
+  * 官方警告，自定义算法不能放在@ComponentScan子包及其目录下，不然会被所有客户端共享，不能特殊化定制
+
+  * 配置入容器，不能放在能扫描的包下
+
+    ```java
+    @Configuration
+    public class MyRule {
+        @Bean("rule")
+        public IRule myRule(){
+            return new RandomRule();
+        }
+    }
+    ```
+  
+* 主类添加如下注解
+
+  * name代表这个模块访问的是cloud-payment-service服务模块，后面是算法规则
+  
+  ```java
+  @RibbonClient(name = "cloud-payment-service",configuration = MyRule.class)
+  ```
+  
+* 测试
+  
+  * 按照顺序打开5个端口，进行调用。实现了随机负载均衡
+* 轮询算法原理：求模值为选择服务器的下标值
+
+***************
+
+### OpenFeign
+
+* 概述：是一个声明式的web客户端，让客户端更简便；且集成了ribbon；只需添加一个接口并在接口上添加注解即可
+
+* 新建cloud-consumer-feign-order80模块（一定要新建，不然会和ribbon冲突）
+
+* 导入依赖
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
+  </dependency>
+  ```
+  
+* 改yml
+
+* 主类添加`@EnableFeignClients`
+
+* 新写service接口
+
+  * 接口方法的参数就是cloud-payment-service的controller对应方法的参数，返回值就是对应的值
+  
+  ```java
+  @Component
+  @FeignClient("cloud-payment-service") //代表访问按个eureka服务
+  public interface PaymentService {
+      @GetMapping("/payments/{id}") 
+      CommonResult<Payment> query(@PathVariable Integer id);
+      
+      @RequestMapping("/payment/payments/insert")
+      CommonResult<Payment> insert(Payment payment);
+  }
+  ```
+  
+* 新写controller类
+
+  * 核心是insert方法时参数Payment payment是自动填充好的，MVC自动封装好的，此处只能让它自己封装
+
+  ```java
+  @RestController
+  @RequestMapping("/consumerfeign")
+  public class OrderFeignController {
+      @Autowired
+      private PaymentService service;
+  
+      @GetMapping("/get/{id}")
+      public CommonResult<Payment> query(@PathVariable("id") Integer id){
+          return service.query(id);
+      }
+      
+      @RequestMapping("/insert")
+      CommonResult<Payment> insert(Payment payment){
+          return service.insert(payment);
+      }
+  }
+  ```
+* 实际就是封装了一层接口 
+
+*****************
+
+### OpenFeign超时控制
+
+* 默认等待1s就返回错误信息报错、
+
+* 因为openfeign整合了ribbon，因此底层的超时控制由ribbon控制
+
+* 设置读取超时时间和连接超时时间
+
+  ```yaml
+  ribbon:
+    ReadTimeout: 5000
+    ConnectTimeout: 5000
+  ```
