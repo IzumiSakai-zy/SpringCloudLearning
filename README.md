@@ -1,6 +1,8 @@
 # SpringCloudLearning
 学习SpringCloud
 
+## 前置知识
+
 ### SpringCloud技术栈
 
 * 服务注册与发现——Eureka
@@ -491,6 +493,8 @@
 
 **************************
 
+## Eueka
+
 ### Eureka安装
 
 * 两个组件
@@ -753,6 +757,8 @@
 
 ***************
 
+## Ribbon
+
 ### Ribbon介绍
 
 * 介绍：客户端负载均衡工具
@@ -834,7 +840,9 @@
 
 ***************
 
-### OpenFeign
+## OpenFeign
+
+### OpenFeign简介
 
 * 概述：是一个声明式的web客户端，让客户端更简便；且集成了ribbon；只需添加一个接口并在接口上添加注解即可
 
@@ -908,3 +916,127 @@
     ReadTimeout: 5000
     ConnectTimeout: 5000
   ```
+
+********************
+
+## Hystrix
+
+### Hysrix前置知识
+
+* 服务雪崩、级联故障：微服务中不同模块互相调用，如果某个服务模块压力太大崩掉，就会连锁反应引起雪崩
+* Hysrix简介：一个用于处理分布式系统延迟和容错的开源库，避免雪崩
+* 断路器：当某个服务模块崩溃时，向调用方返回一个符合预期的、可处理的备选相应，而不是长时间占用或者抛出无法处理的异常
+* Hytrix重要概念
+  * 服务降级(fallback)——服务不可用了，要有兜底的方式。比如请稍后再试
+    * 出现原因：异常，超时，熔断等
+  * 服务熔断(break)——访问量大直接崩溃，会调用服务降级
+  * 服务限流(flow limit)——秒杀等高并发操作，严禁一窝蜂出来拥挤，大家排队，一秒钟一个慢慢来
+
+***************
+
+### Hytrix构建
+
+* 新建一个cloud-provider-hystrix-payment8001
+
+* 添加依赖
+
+  * 其他诸如启动类，yml配置端口、eureka等操作和cloud-provider-payment8001一样。但是要改spring.application.name
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-netflix-hystrix</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>com.netflix.hystrix</groupId>
+      <artifactId>hystrix-javanica</artifactId>
+       <version>RELEASE</version>
+  </dependency>
+  ```
+
+* 然后在controller写两个接口方法，一个方法正常执行，一个方法要停顿三秒钟。
+
+### 压力测试
+
+* 对这两个接口进行访问，结果是都能访问得到，只不过后面一个接口方法慢一点
+
+* 用Jmeter进行高并发访问，20000次请求同时访问后者接口。结果继续浏览器访问时前面五延时接口会拖慢、
+* 以上测试都是8001端口自测，还没有加入80端口的客户端。
+
+### 现象、原因、要求
+
+* 新建cloud-consumer-feign-hystrix-order80模块
+
+* 导入依赖
+
+  * 其他主类，yml配置类似.。但是要改spring.application.name
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-netflix-hystrix</artifactId>
+  </dependency>
+  <dependency>
+       <groupId>com.netflix.hystrix</groupId>
+       <artifactId>hystrix-javanica</artifactId>
+       <version>RELEASE</version>
+  </dependency>
+  ```
+
+* `@FeignClient("cloud-payment-hystrix-service")`注解的值换成新的带有hystrix的服务模块名
+
+* 按照openfeign的规则service接口和controller
+* 用80来测试依然能够跑通，但是加入20000次压力测试后就由明显等待延迟了
+* 上述结论：上面访问的情况访问不佳。体验不要，需要服务降级、容错、限流等技术措施
+* 解决要求
+  * 超时导致服务器变慢(转圈圈)——超时不在等待
+  * 系统直接出错(宕机或各种故障)——出错要有基本兜底
+
+************
+
+### 服务降级
+
+* 8001先从自己身上找问题
+
+  * 设置自身调用超时的时间峰值，峰值内可以正常运行；超过了峰值需要有方法来兜底，作为服务降级
+
+* 8001服务降级
+
+  * service代码如下
+
+    * allbackMethod = "timeOutHandler"指定出错的方法
+    * commandProperties指定出错的条件，是一个数组，还可以加很多条件
+
+    ```java
+    @Service
+    public class PaymentServiceImpl extends ServiceImpl<PaymentMapper, Payment> implements IPaymentService {
+        @HystrixCommand(fallbackMethod = "timeOutHandler",commandProperties = {
+                @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds",value = "3000")
+        })
+        public String timeOut(Integer id){
+            try {
+                TimeUnit.SECONDS.sleep(5);
+                return "success";
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                return "fail";
+            }
+        }
+    
+        public String timeOutHandler(Integer id){
+            return "服务降级成功";
+        }
+    }
+    ```
+
+  * controller代码如下
+
+    ```java
+    @RequestMapping("/hystrix/{id}")
+    public CommonResult hystrix(@PathVariable("id") Integer id){
+        String s = paymentService.timeOut(id);
+        return new CommonResult(200,s);
+    }
+    ```
+
+  * 主类加注解`@EnableCircuitBreaker`开启
