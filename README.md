@@ -1040,4 +1040,158 @@
     ```
 
   * 主类加注解`@EnableCircuitBreaker`开启
-### 合并后新加了一行
+  
+  * 经过测试可以实现服务降级，且不仅仅是超时会降级，service层里面加上`int i=1/0`也会报错
+
+* 80客户端服务降级
+
+  * 客户端也可以进行服务降级，且一般都是对服务端进行服务降级成处理
+
+  * 改yml，支持feign-hystrix
+
+    ```yaml
+    feign:
+      hystrix:
+        enabled: true
+    ```
+
+  * 主类加上`@EnableHystrix`注解开启
+
+  * 客户端service接口
+
+    * service接口不用写超时控制，因为这是调用另一个模块的方法，下面的模块怎样服务降级对上级是他透明的。因此在这千万不能写超时控制
+
+    ```java
+    @Component
+    @FeignClient("cloud-payment-hystrix-service")
+    public interface PaymentService {
+        @RequestMapping("/payment/hystrix/{id}")
+        CommonResult hystrix(@PathVariable("id") Integer id);
+    }
+    ```
+
+  * 客户端controller
+
+    * 客户端服务降级应该写在controller里面，至于它调用的服务层调用的另外模块怎么降级与他无关
+    * 它只管自己客户端服务降级
+
+    ```java
+    @RestController
+    @RequestMapping("/consumerfeign")
+    public class OrderFeignController {
+        @Autowired
+        private PaymentService service;
+    
+        @HystrixCommand(fallbackMethod = "timeOutHandler",commandProperties = {
+                @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds",value = "3000")
+        })
+        @RequestMapping("/hystrix/{id}")
+        CommonResult hystrix(@PathVariable("id") Integer id) throws InterruptedException {
+            TimeUnit.SECONDS.sleep(5);
+            return service.hystrix(id);
+        }
+    
+        CommonResult timeOutHandler(Integer id){
+            return new CommonResult(200,"客户端服务降级成功");
+        }
+    }
+    ```
+
+  * 和支付模块一样，客户端controller 系统错误3/0也能服务降级
+
+* 出现问题
+
+  * 每一个方法都要配置默认服务降级方法太复杂了
+
+    * 在类上controller或者service顶层添加`@DefaultProperties(defaultFallback = "globalFallback")`注解，如果没有配置就默认服务降级方法，如果配置了就用自己的
+
+  * 降级方法和业务类混合在一起，耦合度高
+
+    * 未来我们面对的异常——运行、超时、宕机
+
+    * 思路：open feign的所有访问都要经过一个service接口，可以从下手
+
+    * 在service接口上添加上fallback属性。属性指定的类是一个实现了这个接口的类`@FeignClient(value = "cloud-payment-hystrix-service",fallback = PaymentServiceFallback.class)`
+
+    * 实现类写法
+
+      ```java
+      @Component
+      public class PaymentServiceFallback implements PaymentService{
+          @Override
+          public CommonResult<Payment> query(Integer id) {
+              return new CommonResult<>(200,"query服务降级成功");
+          }
+      
+          @Override
+          public CommonResult<Payment> insert(Payment payment) {
+              return new CommonResult<>(200,"insert服务降级成功");
+          }
+      
+          @Override
+          public CommonResult hystrix(Integer id) {
+              return new CommonResult<>(200,"hystrix服务降级成功");
+          }
+      }
+      ```
+
+    * 以上的实现过程都是客户端调用8001接口发生的一些故障，和在controller内的写的作用是相同的，只是这样更规范
+
+********************
+
+### 服务熔断
+
+* 熔断的逻辑就是保险丝，不同的是当检测到服务链路正常后会恢复链路 
+
+* 实现
+
+  * 8001的PaymentServiceImpl添加内容
+
+    ```java
+    //服务熔断
+        @HystrixCommand(fallbackMethod = "breakdownError",commandProperties = {
+                //是否开启断路器
+                @HystrixProperty(name = "circuitBreaker.enabled",value = "true"),
+                //请求次数
+                @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold",value = "10"),
+                //时间窗口期
+                @HystrixProperty(name = "circuitBreaker.sleepWindowInMillisecond",value = "10000"),
+                //达到百分之多少开启跳闸
+                @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage",value = "60"),
+        })
+        public CommonResult breakdown(Integer id){
+            if (id<0)
+                throw new RuntimeException("不能为负数");
+            return new CommonResult(200,"是正数成功");
+        }
+    
+        public CommonResult breakdownError(){
+            return new CommonResult(200,"服务熔断成功");
+        }
+    ```
+
+  * PaymentController调用服务层代码
+
+    ```java
+    @RequestMapping("/breakdown/{id}")
+    public CommonResult breakdown(@PathVariable("id") Integer id){
+        return paymentService.breakdown(id);
+    }
+    ```
+
+  * 核心思路，服务熔断是在8001后台做的，不是在客户端80端口做的。依然可以用实现类的方法把降级的方法抽出去，实质上服务熔断就是添加熔断调价，其他和服务降级都是一样的
+
+*************************************************
+
+### 图形化
+
+* 添加依赖
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-netflix-hystrix-dashboard</artifactId>
+  </dependency>
+  ```
+
+  

@@ -17,7 +17,6 @@ import java.util.List;
  * <p>
  *  前端控制器
  * </p>
- *
  * @author Izumi Sakai
  * @since 2020-07-08
  */
@@ -55,6 +54,11 @@ public class PaymentController {
     public CommonResult hystrix(@PathVariable("id") Integer id){
         String s = paymentService.timeOut(id);
         return new CommonResult(200,s);
+    }
+
+    @RequestMapping("/breakdown/{id}")
+    public CommonResult breakdown(@PathVariable("id") Integer id){
+        return paymentService.breakdown(id);
     }
 }
 
