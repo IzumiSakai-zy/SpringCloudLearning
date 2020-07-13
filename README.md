@@ -1194,4 +1194,34 @@
   </dependency>
   ```
 
-  
+********************
+
+## GateAway
+
+### 前置知识
+
+* 架构：请求->nginx等熔断机制->网关->微服务
+* 技术特性
+  * 基于spring 5、project reactor、springboot 2.0
+  * 动态路由：能匹配任何请求
+  * 集成hystrix断路器功能
+  * 基于异步非阻塞式
+* 三大核心概念
+  * 路由(Router)
+  * 断言(predicate)
+  * 过滤(filter)
+
+****************************
+
+### 实战
+
+* 新建项目——cloud-gateway-gateway9527
+
+* 添加依赖
+
+  ```XML
+  <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-gateway</artifactId>
+  </dependency>
+  ```

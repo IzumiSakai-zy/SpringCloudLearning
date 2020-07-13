@@ -9,10 +9,11 @@
         <module name="cloud-consumers-order80" />
         <module name="cloud-eureka-server7001" />
         <module name="cloud-eureka-server7002" />
-        <module name="cloud-consumer-feign-hystrix-order80" />
+        <module name="cloud-consumer-order80" />
         <module name="cloud-provider-payment8002" />
         <module name="cloud-provider-payment8001" />
-        <module name="cloud-consumer-order80" />
+        <module name="cloud-gateway-gateway9527" />
+        <module name="cloud-consumer-feign-hystrix-order80" />
         <module name="cloud-consumer-feign-order80" />
         <module name="cloud-provider-hystrix-payment8001" />
       </profile>
@@ -24,6 +25,7 @@
       <module name="cloud-consumers-order80" target="8" />
       <module name="cloud-eureka-server7001" target="8" />
       <module name="cloud-eureka-server7002" target="8" />
+      <module name="cloud-gateway-gateway9527" target="8" />
       <module name="cloud-provider-hystrix-payment8001" target="8" />
       <module name="cloud-provider-payment8001" target="8" />
       <module name="cloud-provider-payment8002" target="8" />
